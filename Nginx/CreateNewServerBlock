@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+DOMAIN=${1:-err}
+
+echo "Using domain: '$DOMAIN'"
+
+if [[ "$DOMAIN" =~ .*"www.".* ]]; then
+  echo "Don't use 'www.'"
+  exit 1
+fi
+
+if [[ "$DOMAIN" =~ .*".com".* ]]; then
+  echo "Valid domain"
+else
+  echo "Please use a valid domain as the first argument (e.g.: 'something.com')"
+  exit 1
+fi
+
+sudo mkdir -p /var/www/$DOMAIN/html
+sudo chown -R $USER:$USER /var/www/$DOMAIN/html
+sudo chmod -R 755 /var/www/$DOMAIN
+sudo touch /var/www/$DOMAIN/html/index.html
+echo "Welcome to $DOMAIN" | sudo tee -a /var/www/$DOMAIN/html/index.html
+
+NGINX_DATA="server {
+    listen 80;
+    listen [::]:80;
+
+    root /var/www/$DOMAIN/html;
+    index index.html index.htm index.nginx-debian.html;
+
+    server_name $DOMAIN www.$DOMAIN;
+
+    location / {
+        try_files \$uri \$uri/ =404;
+    }
+}"
+
+sud touch /etc/nginx/sites-available/$DOMAIN
+echo $NGINX_DATA | sudo tee -a /etc/nginx/sites-available/$DOMAIN
+sudo ln -s /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/
+sudo systemctl restart nginx
